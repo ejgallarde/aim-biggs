@@ -1,5 +1,5 @@
 ops:
-  fetch_data_from_external_db:
+  external_data:
     config:
       host: "client-db.example.com"
       port: 5432

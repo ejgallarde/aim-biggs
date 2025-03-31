@@ -27,21 +27,17 @@ MLFLOW_TRACKING_URI = "http://mlflow:5000"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
-@op(
+@asset(
     config_schema={
-        "host": Field(
-            String, description="External DB host (e.g., client-provided hostname)"
-        ),
-        "port": Field(
-            Int, description="External DB port (usually 5432 for PostgreSQL)"
-        ),
+        "host": Field(String, description="External DB host (e.g., client-provided hostname)"),
+        "port": Field(Int, description="External DB port (usually 5432 for PostgreSQL)"),
         "user": Field(String, description="Username for the external database"),
         "password": Field(String, description="Password for the external database"),
         "database": Field(String, description="Database name to connect to"),
         "queries": Field(List[String], description="List of SQL queries to run"),
     }
 )
-def fetch_data_from_external_db(context):
+def external_data(context) -> dict:
     config = context.op_config
     results = {}
     try:
@@ -52,14 +48,13 @@ def fetch_data_from_external_db(context):
             password=config["password"],
             database=config["database"],
         )
-        context.log.info("Connection to external database established.")
-
+        context.log.info("Connected to external database.")
         for i, query in enumerate(config["queries"]):
-            data = pd.read_sql(query, conn)
-            results[f"query_{i}"] = data
-            context.log.info(f"Query {i} executed, retrieved {len(data)} rows.")
+            df = pd.read_sql(query, conn)
+            results[f"query_{i}"] = df
+            context.log.info(f"Query {i} executed; retrieved {len(df)} rows.")
     except Exception as e:
-        context.log.error(f"Error connecting to external DB: {e}")
+        context.log.error(f"Error fetching data: {e}")
         raise e
     finally:
         if conn:
@@ -69,9 +64,10 @@ def fetch_data_from_external_db(context):
 
 
 @asset
-def biggs_dataset() -> pd.DataFrame:
-    # TODO: combine data
-    return "Update me"
+def biggs_dataset(external_data: dict) -> pd.DataFrame:
+    # Combine all DataFrames from the external_data asset into one DataFrame
+    combined_df = pd.concat(list(external_data.values()), ignore_index=True)
+    return combined_df
 
 
 @asset

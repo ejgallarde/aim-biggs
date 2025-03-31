@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from dagster import build_op_context
 from src.dagster.dags.biggs_job import (
-    iris_dataset,
+    biggs_dataset,
     split_data,
     train_model,
     predict,
@@ -13,7 +13,7 @@ from src.dagster.dags.biggs_job import (
 )
 
 
-class TestIrisPipeline(unittest.TestCase):
+class TestBiggsPipeline(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
         self.mock_data = pd.DataFrame(
@@ -21,8 +21,8 @@ class TestIrisPipeline(unittest.TestCase):
         )
         self.mock_data["target"] = np.random.randint(0, 3, 150)
 
-    def test_iris_dataset(self):
-        df = iris_dataset()
+    def test_biggs_dataset(self):
+        df = biggs_dataset()
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn("target", df.columns)
 
@@ -46,10 +46,10 @@ class TestIrisPipeline(unittest.TestCase):
         self.assertIn("y_train_pred", predictions)
         self.assertEqual(len(predictions["y_train_pred"]), len(split["X_train"]))
 
-    @patch("src.dagster.dags.iris_job.mlflow")
-    @patch("src.dagster.dags.iris_job.plt.savefig")
-    @patch("src.dagster.dags.iris_job.shap")
-    @patch("src.dagster.dags.iris_job.Report")
+    @patch("src.dagster.dags.biggs_job.mlflow")
+    @patch("src.dagster.dags.biggs_job.plt.savefig")
+    @patch("src.dagster.dags.biggs_job.shap")
+    @patch("src.dagster.dags.biggs_job.Report")
     def test_log_to_mlflow(self, mock_report, mock_shap, mock_plt, mock_mlflow):
         mock_context = build_op_context()
         split = split_data(self.mock_data)
