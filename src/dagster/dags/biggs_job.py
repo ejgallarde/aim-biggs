@@ -8,10 +8,20 @@ import shap
 from evidently.metric_preset import ClassificationPreset
 from evidently.report import Report
 from loguru import logger
-from sklearn.ensemble import RandomForestRegressor, LinearRegression
+from sklearn.ensemble import LinearRegression, RandomForestRegressor
 from sklearn.model_selection import train_test_split
 
-from dagster import Definitions, OpExecutionContext, asset, job, op, Field, String, Int, List
+from dagster import (
+    Definitions,
+    Field,
+    Int,
+    List,
+    OpExecutionContext,
+    String,
+    asset,
+    job,
+    op,
+)
 
 MLFLOW_TRACKING_URI = "http://mlflow:5000"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -19,16 +29,18 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 @op(
     config_schema={
-        "host": Field(String, description="External DB host (e.g., client-provided hostname)"),
-        "port": Field(Int, description="External DB port (usually 5432 for PostgreSQL)"),
+        "host": Field(
+            String, description="External DB host (e.g., client-provided hostname)"
+        ),
+        "port": Field(
+            Int, description="External DB port (usually 5432 for PostgreSQL)"
+        ),
         "user": Field(String, description="Username for the external database"),
         "password": Field(String, description="Password for the external database"),
         "database": Field(String, description="Database name to connect to"),
         "queries": Field(List[String], description="List of SQL queries to run"),
     }
 )
-
-
 def fetch_data_from_external_db(context):
     config = context.op_config
     results = {}
@@ -71,8 +83,13 @@ def split_data(biggs_dataset: pd.DataFrame):
     )
     return {"X_train": X_train, "X_test": X_test, "y_train": y_train, "y_test": y_test}
 
+
 # Update based on algorithms that will be used
-@op(config_schema={"algorithm": Field(String, default_value="random_forest", is_required=False)})
+@op(
+    config_schema={
+        "algorithm": Field(String, default_value="random_forest", is_required=False)
+    }
+)
 def train_model(context, split_data):
     X_train = split_data["X_train"]
     y_train = split_data["y_train"]
