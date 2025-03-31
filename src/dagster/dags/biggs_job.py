@@ -29,8 +29,12 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 @asset(
     config_schema={
-        "host": Field(String, description="External DB host (e.g., client-provided hostname)"),
-        "port": Field(Int, description="External DB port (usually 5432 for PostgreSQL)"),
+        "host": Field(
+            String, description="External DB host (e.g., client-provided hostname)"
+        ),
+        "port": Field(
+            Int, description="External DB port (usually 5432 for PostgreSQL)"
+        ),
         "user": Field(String, description="Username for the external database"),
         "password": Field(String, description="Password for the external database"),
         "database": Field(String, description="Database name to connect to"),
