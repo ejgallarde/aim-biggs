@@ -1,0 +1,11 @@
+ops:
+  fetch_data_from_external_db:
+    config:
+      host: "client-db.example.com"
+      port: 5432
+      user: "client_user"
+      password: "client_password"
+      database: "client_db"
+      queries:
+        - "SELECT * FROM sales_data WHERE date >= '2023-01-01';"
+        - "SELECT * FROM customer_data;"

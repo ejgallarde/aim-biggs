@@ -1,0 +1,143 @@
+services:
+  dagster-webserver:
+    build:
+      context: ./src/
+      dockerfile: ./dockerfiles/dagster
+    container_name: dagster-webserver
+    ports:
+      - "3000:3000"
+    networks:
+      - single-network
+    environment:
+      DAGSTER_HOME: /dagster
+    command: ["dagster", "dev", "-h", "0.0.0.0", "-p", "3000"]
+
+  db:
+    image: postgres:${PG_VERSION}
+    container_name: mlflow_postgres
+    restart: always
+    expose:
+      - "${PG_PORT}"
+    networks:
+      - single-network
+    environment:
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASSWORD}
+      - POSTGRES_DB=${PG_DATABASE}
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-p", "${PG_PORT}", "-U", "${PG_USER}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - single-network
+
+  minio-create-bucket:
+    image: minio/mc
+    container_name: create-bucker
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb local/mlflow;
+      mc policy set public local/mlflow;
+      exit 0;
+      "
+    networks:
+      - single-network
+
+#  pytest:
+#    build:
+#      context: ./src
+#      dockerfile: ./dockerfiles/pytest
+#    container_name: pytest
+#    ports:
+#      - "7000:7000"
+#    environment:
+#      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+#    command: python3 -m http.server 7000
+
+  mlflow:
+    restart: always
+    build:
+      context: ./src
+      dockerfile: ./dockerfiles/mlflow
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_ARTIFACT_URI=${MLFLOW_ARTIFACT_URI}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+    depends_on:
+      - minio
+      - db
+    command: >
+      mlflow server
+      --backend-store-uri postgresql+psycopg2://${PG_USER}:${PG_PASSWORD}@db:${PG_PORT}/${PG_DATABASE}
+      --host 0.0.0.0
+      --serve-artifacts
+      --artifacts-destination ${MLFLOW_BUCKET_NAME}
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - single-network
+
+  fastapi:
+    restart: always
+    build:
+      context: ./src
+      dockerfile: ./dockerfiles/fastapi
+    container_name: fastapi
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_ARTIFACT_URI=${MLFLOW_ARTIFACT_URI}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+    networks:
+      - single-network
+
+  jupyterlab_instance:
+    build:
+      context: ./src
+      dockerfile: ./dockerfiles/mlflow
+    container_name: jupyterlab_instance
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_ARTIFACT_URI=${MLFLOW_ARTIFACT_URI}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+    networks:
+      - single-network
+    depends_on:
+      - mlflow
+    command: [ "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser"]
+
+networks:
+  single-network:

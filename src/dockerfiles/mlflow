@@ -1,0 +1,9 @@
+FROM ghcr.io/mlflow/mlflow:latest
+
+WORKDIR /app
+COPY notebooks notebooks
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+RUN useradd -m -s /bin/bash mlflowuser && \
+    chown -R mlflowuser:mlflowuser /app
+USER mlflowuser
