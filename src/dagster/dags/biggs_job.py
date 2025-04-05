@@ -71,9 +71,7 @@ def biggs_dataset() -> pd.DataFrame:
     dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
     np.random.seed(42)
     # Create a simple time series target
-    df = pd.DataFrame({
-        "target": np.random.rand(365)
-    }, index=dates)
+    df = pd.DataFrame({"target": np.random.rand(365)}, index=dates)
     return df
 
 
