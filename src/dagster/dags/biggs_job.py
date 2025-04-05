@@ -71,7 +71,9 @@ def biggs_dataset() -> pd.DataFrame:
     dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
     np.random.seed(42)
     # Create a simple time series target
-    df = pd.DataFrame({"target": np.random.rand(365)}, index=dates)
+    df = pd.DataFrame({
+        "target": np.random.rand(365)
+    }, index=dates)
     return df
 
 
@@ -111,7 +113,8 @@ def train_model(context, split_data):
 
 
 @op
-def predict(model, split_data):
+def predict(context, model_tuple, split_data):
+    model, algo = model_tuple  # Unpack the tuple to get the model instance.
     X_test = split_data["X_test"]
     y_test_pred = model.predict(X_test)
     return {"y_test_pred": y_test_pred}
