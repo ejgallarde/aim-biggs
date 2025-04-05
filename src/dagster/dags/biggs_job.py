@@ -65,26 +65,13 @@ def external_data(context) -> dict:
 
 
 @asset
-def biggs_dataset(external_data: dict) -> pd.DataFrame:
-    # Generate a date range for one year of daily data
+def biggs_dataset() -> pd.DataFrame:
+    # For testing, return a mock time series DataFrame.
+    # This example simulates one year of daily data.
     dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
-
-    # Create a trend (linear increase), a seasonal pattern (sinusoidal) and add random noise
     np.random.seed(42)
-    trend = np.linspace(100, 200, len(dates))
-    seasonal = 10 * np.sin(
-        np.linspace(0, 4 * np.pi, len(dates))
-    )  # Four full cycles over the year
-    noise = np.random.normal(0, 5, len(dates))
-
-    # Combine into a target variable for forecasting
-    values = trend + seasonal + noise
-
-    # Build the DataFrame
-    df = pd.DataFrame({"date": dates, "target": values})
-    # Set date as the index (common for time series analysis)
-    df.set_index("date", inplace=True)
-
+    # Create a simple time series target
+    df = pd.DataFrame({"target": np.random.rand(365)}, index=dates)
     return df
 
 
