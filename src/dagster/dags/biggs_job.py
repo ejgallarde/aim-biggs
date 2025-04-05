@@ -13,10 +13,10 @@ from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
 
 from dagster import (
+    Array,
     Definitions,
     Field,
     Int,
-    List,
     OpExecutionContext,
     String,
     asset,
@@ -35,7 +35,7 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         "user": Field(String, description="Username for the external database"),
         "password": Field(String, description="Password for the external database"),
         "database": Field(String, description="Database name to connect to"),
-        "queries": Field(List[String], description="List of SQL queries to run"),
+        "queries": Field(Array(String), description="List of SQL queries to run"),
     }
 )
 def external_data(context) -> dict:
