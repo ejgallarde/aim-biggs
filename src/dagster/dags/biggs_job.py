@@ -3,13 +3,14 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
-import psycopg2
+import pymysql
 import shap
-from evidently.metric_preset import ClassificationPreset
+from evidently.metric_preset import RegressionPreset
 from evidently.report import Report
+from lightgbm import LGBMRegressor
 from loguru import logger
-from sklearn.ensemble import LinearRegression, RandomForestRegressor
 from sklearn.model_selection import train_test_split
+from xgboost import XGBRegressor
 
 from dagster import (
     Definitions,
@@ -29,12 +30,8 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 @asset(
     config_schema={
-        "host": Field(
-            String, description="External DB host (e.g., client-provided hostname)"
-        ),
-        "port": Field(
-            Int, description="External DB port (usually 5432 for PostgreSQL)"
-        ),
+        "host": Field(String, description="External DB host (e.g., Biggs' hostname)"),
+        "port": Field(Int, description="External DB port (usually 3306 for MariaDB)"),
         "user": Field(String, description="Username for the external database"),
         "password": Field(String, description="Password for the external database"),
         "database": Field(String, description="Database name to connect to"),
@@ -45,14 +42,14 @@ def external_data(context) -> dict:
     config = context.op_config
     results = {}
     try:
-        conn = psycopg2.connect(
+        conn = pymysql.connect(
             host=config["host"],
             port=config["port"],
             user=config["user"],
             password=config["password"],
             database=config["database"],
         )
-        context.log.info("Connected to external database.")
+        context.log.info("Connected to external MariaDB database.")
         for i, query in enumerate(config["queries"]):
             df = pd.read_sql(query, conn)
             results[f"query_{i}"] = df
@@ -69,9 +66,26 @@ def external_data(context) -> dict:
 
 @asset
 def biggs_dataset(external_data: dict) -> pd.DataFrame:
-    # Combine all DataFrames from the external_data asset into one DataFrame
-    combined_df = pd.concat(list(external_data.values()), ignore_index=True)
-    return combined_df
+    # Generate a date range for one year of daily data
+    dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
+
+    # Create a trend (linear increase), a seasonal pattern (sinusoidal) and add random noise
+    np.random.seed(42)
+    trend = np.linspace(100, 200, len(dates))
+    seasonal = 10 * np.sin(
+        np.linspace(0, 4 * np.pi, len(dates))
+    )  # Four full cycles over the year
+    noise = np.random.normal(0, 5, len(dates))
+
+    # Combine into a target variable for forecasting
+    values = trend + seasonal + noise
+
+    # Build the DataFrame
+    df = pd.DataFrame({"date": dates, "target": values})
+    # Set date as the index (common for time series analysis)
+    df.set_index("date", inplace=True)
+
+    return df
 
 
 @asset
@@ -84,10 +98,9 @@ def split_data(biggs_dataset: pd.DataFrame):
     return {"X_train": X_train, "X_test": X_test, "y_train": y_train, "y_test": y_test}
 
 
-# Update based on algorithms that will be used
 @op(
     config_schema={
-        "algorithm": Field(String, default_value="random_forest", is_required=False)
+        "algorithm": Field(String, default_value="xgboost", is_required=False)
     }
 )
 def train_model(context, split_data):
@@ -96,22 +109,25 @@ def train_model(context, split_data):
 
     algo = context.op_config["algorithm"]
 
-    if algo == "random_forest":
-        model = RandomForestRegressor(n_estimators=100, random_state=42)
-    elif algo == "linear_regression":
-        model = LinearRegression()
+    if algo == "xgboost":
+        model = XGBRegressor(
+            n_estimators=100, random_state=42, objective="reg:squarederror"
+        )
+    elif algo == "lightgbm":
+        model = LGBMRegressor(n_estimators=100, random_state=42)
     else:
         raise ValueError(f"Unsupported algorithm: {algo}")
 
+    context.log.info("Training time series forecasting model using lag features.")
     model.fit(X_train, y_train)
-    return (model, algo)  # MLflow logging is handled in `log_to_mlflow`
+    return (model, algo)
 
 
 @op
 def predict(model, split_data):
-    X_train = split_data["X_train"]
-    y_train_pred = model.predict(X_train)
-    return {"y_train_pred": y_train_pred}
+    X_test = split_data["X_test"]
+    y_test_pred = model.predict(X_test)
+    return {"y_test_pred": y_test_pred}
 
 
 @op
@@ -122,7 +138,8 @@ def log_to_mlflow(context: OpExecutionContext, train_model, split_data, predict)
     y_train = split_data["y_train"]
     X_test = split_data["X_test"]
     y_test = split_data["y_test"]
-    y_train_pred = predict["y_train_pred"]  # Get predictions
+    # Now predict returns test set predictions for regression
+    y_test_pred = predict["y_test_pred"]
 
     (model, algo) = train_model
     model_name = "biggs_" + algo + "_model"
@@ -131,39 +148,40 @@ def log_to_mlflow(context: OpExecutionContext, train_model, split_data, predict)
         run_id = run.info.run_id
         logger.info(f"Run started: {run_id}")
 
+        # Log the model and parameters
         mlflow.sklearn.log_model(model, model_name)
         mlflow.log_params({"n_estimators": 100, "random_state": 42})
 
-        train_accuracy = model.score(X_train, y_train)
-        test_accuracy = model.score(X_test, y_test)
-        mlflow.log_metric("train_accuracy", train_accuracy)
-        mlflow.log_metric("test_accuracy", test_accuracy)  # Log test accuracy
+        # Compute R^2 scores as a metric for regression
+        train_score = model.score(X_train, y_train)
+        test_score = model.score(X_test, y_test)
+        mlflow.log_metric("train_score", train_score)
+        mlflow.log_metric("test_score", test_score)
 
+        # Generate a SHAP summary plot
         explainer = shap.TreeExplainer(model)
-        shap_values = explainer(X_train)
+        shap_values = explainer.shap_values(X_train)
+        plt.figure(figsize=(8, 6))
+        shap.summary_plot(shap_values, X_train, show=False)
+        plt.savefig("shap_summary.png", bbox_inches="tight")
+        mlflow.log_artifact("shap_summary.png")
+        plt.close()
 
-        for i in range(3):  # Loop over classes
-            plt.figure(figsize=(6, 4))
-            shap.plots.waterfall(shap_values[0, :, i], show=False)
-            plt.title(f"Waterfall Plot - Class {i}")
-            plt.savefig(f"shap_summary_class_{i}.png", bbox_inches="tight")
-            mlflow.log_artifact(f"shap_summary_class_{i}.png")
-
-        # Include predictions in the report data
-        report_data = pd.DataFrame({"target": y_train, "prediction": y_train_pred})
-
-        report = Report(metrics=[ClassificationPreset()])
+        # Generate an Evidently report for regression
+        report_data = pd.DataFrame({"target": y_test, "prediction": y_test_pred})
+        report = Report(metrics=[RegressionPreset()])
         report.run(reference_data=report_data, current_data=report_data)
         report.save_html("evidently_report.html")
         mlflow.log_artifact("evidently_report.html")
 
+        # Register the model
         result = mlflow.register_model(
-            model_uri=f"runs:/{run_id}/{model_name}",  # Use run_id from the active run
-            name=f"biggs{algo}",
+            model_uri=f"runs:/{run_id}/{model_name}",
+            name=f"biggs_{algo}",
         )
 
         logger.info(f"Model registered: {result.name}, version: {result.version}")
-        logger.info(f"Train Accuracy: {train_accuracy}, Test Accuracy: {test_accuracy}")
+        logger.info(f"Train Score: {train_score}, Test Score: {test_score}")
 
 
 @op
@@ -175,83 +193,72 @@ def log_to_mlflow_skewed(context: OpExecutionContext, train_model, split_data, p
     X_test = split_data["X_test"]
     y_test = split_data["y_test"]
 
-    # Ensure y_train_pred is a pandas Series with the same index as y_train
-    y_train_pred = pd.Series(predict["y_train_pred"], index=y_train.index)
+    # Get test predictions and re-index to match y_test
+    y_test_pred = pd.Series(predict["y_test_pred"], index=y_test.index)
 
     (model, algo) = train_model
     model_name = "biggs_" + algo + "_model"
 
-    # Introduce skew to data
+    # Apply artificial drift to simulate data skew
     skewed_data = skew_data(split_data)
 
-    # Ensure predictions match new y_train index after skewing
-    y_train_pred_skewed = y_train_pred.loc[skewed_data["y_train"].index]
+    # Align predictions with the skewed data index
+    y_test_pred_skewed = y_test_pred.loc[skewed_data["y_train"].index]
 
     with mlflow.start_run() as run:
         run_id = run.info.run_id
         logger.info(f"Run started: {run_id}")
 
-        # Log original model
-        mlflow.sklearn.log_model(model, f"{model_name}")
+        mlflow.sklearn.log_model(model, model_name)
         mlflow.log_params({"n_estimators": 100, "random_state": 42})
 
-        train_accuracy = model.score(X_train, y_train)
-        test_accuracy = model.score(X_test, y_test)
-        mlflow.log_metric("train_accuracy", train_accuracy)
-        mlflow.log_metric("test_accuracy", test_accuracy)
+        train_score = model.score(X_train, y_train)
+        test_score = model.score(X_test, y_test)
+        mlflow.log_metric("train_score", train_score)
+        mlflow.log_metric("test_score", test_score)
 
+        # Generate a SHAP summary plot for the original data
         explainer = shap.TreeExplainer(model)
-        shap_values = explainer(X_train)
+        shap_values = explainer.shap_values(X_train)
+        plt.figure(figsize=(8, 6))
+        shap.summary_plot(shap_values, X_train, show=False)
+        plt.savefig("shap_summary_skewed.png", bbox_inches="tight")
+        mlflow.log_artifact("shap_summary_skewed.png")
+        plt.close()
 
-        for i in range(3):  # Loop over classes
-            plt.figure(figsize=(6, 4))
-            shap.plots.waterfall(shap_values[0, :, i], show=False)
-            plt.title(f"Waterfall Plot - Class {i}")
-            plt.savefig(f"shap_summary_class_{i}.png", bbox_inches="tight")
-            mlflow.log_artifact(f"shap_summary_class_{i}.png")
-
-        # Evidently Report (Drift Detection)
-        report_data = pd.DataFrame({"target": y_train, "prediction": y_train_pred})
+        # Generate Evidently report comparing original and skewed data
+        report_data = pd.DataFrame({"target": y_test, "prediction": y_test_pred})
         skewed_report_data = pd.DataFrame(
-            {"target": skewed_data["y_train"], "prediction": y_train_pred_skewed}
+            {"target": skewed_data["y_train"], "prediction": y_test_pred_skewed}
         )
-
-        report = Report(metrics=[ClassificationPreset()])
+        report = Report(metrics=[RegressionPreset()])
         report.run(reference_data=report_data, current_data=skewed_report_data)
-        report.save_html("evidently_report.html")
-        mlflow.log_artifact("evidently_report.html")
+        report.save_html("evidently_report_skewed.html")
+        mlflow.log_artifact("evidently_report_skewed.html")
 
-        # Register Model Under Different Name
         result = mlflow.register_model(
             model_uri=f"runs:/{run_id}/{model_name}",
             name=f"{model_name}_skewed",
         )
 
         logger.info(f"Model registered: {result.name}, version: {result.version}")
-        logger.info(f"Train Accuracy: {train_accuracy}, Test Accuracy: {test_accuracy}")
+        logger.info(f"Train Score: {train_score}, Test Score: {test_score}")
 
 
 @op
 def skew_data(split_data):
-    """Applies artificial drift to data for Evidently AI to detect."""
+    """Applies artificial drift to data for regression forecasting."""
     X_train = split_data["X_train"].copy()
     y_train = split_data["y_train"].copy()
 
-    # Feature shift (increase first feature by 20%)
-    X_train.iloc[:, 0] *= 1.2
-
-    # Add noise
+    # Apply a multiplicative drift to the first predictor (lag feature)
+    X_train.iloc[:, 0] = X_train.iloc[:, 0] * 1.2
+    # Add noise to predictors
     noise = np.random.normal(0, 0.1, X_train.shape)
     X_train += noise
 
-    # Reduce one class by 50%
-    if len(y_train.unique()) > 1:
-        class_to_reduce = y_train.value_counts().idxmin()
-        indices_to_drop = (
-            y_train[y_train == class_to_reduce].sample(frac=0.5, random_state=42).index
-        )
-        X_train = X_train.drop(index=indices_to_drop)
-        y_train = y_train.drop(index=indices_to_drop)
+    # Apply a drift to the target variable: increase by 10% plus some noise
+    y_train = y_train * 1.1 + np.random.normal(0, 0.5, size=y_train.shape)
 
     return {"X_train": X_train, "y_train": y_train}
 

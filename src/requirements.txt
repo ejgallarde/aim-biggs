@@ -5,6 +5,7 @@ python-multipart
 boto3
 jupyterlab
 jupyterlab-execute-time
+lightgbm
 loguru
 psycopg2-binary
 pytest
@@ -16,3 +17,5 @@ numpy
 scikit-learn
 sqlalchemy
 dagster
+PyMySQL
+xgboost
