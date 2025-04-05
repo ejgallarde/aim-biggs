@@ -18,17 +18,15 @@ from src.dagster.dags.biggs_job import (
 class TestBiggsPipeline(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
-        # Create a mock time series DataFrame with a datetime index for sequential splitting
+        # Create a mock time series DataFrame with a datetime index
         dates = pd.date_range(start="2023-01-01", periods=150, freq="D")
         self.mock_data = pd.DataFrame(
             np.random.rand(150, 4), columns=["feature1", "feature2", "feature3", "feature4"]
         )
-        # For regression, use continuous target values
         self.mock_data["target"] = np.random.rand(150)
         self.mock_data.index = dates
 
     def test_biggs_dataset(self):
-        # Call the asset without any inputs; biggs_dataset should now not require external_data.
         df = biggs_dataset()
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn("target", df.columns)
@@ -44,18 +42,16 @@ class TestBiggsPipeline(unittest.TestCase):
 
     def test_train_model(self):
         split = split_data(self.mock_data)
-        context = build_op_context()
-        model_result = train_model(context, split)
+        model_result = train_model(split)
         model, algo = model_result
-        # Expect the model to be an instance of either XGBRegressor or LGBMRegressor
+        # Expect the model to be either an instance of XGBRegressor or LGBMRegressor
         self.assertTrue(isinstance(model, (XGBRegressor, LGBMRegressor)))
 
     def test_predict(self):
         split = split_data(self.mock_data)
-        context = build_op_context()
-        model_result = train_model(context, split)
-        predictions = predict(context, model_result, split)
-        # Expect predictions on test set
+        model_result = train_model(split)
+        predictions = predict(model_result, split)
+        # Updated to check for test set predictions
         self.assertIn("y_test_pred", predictions)
         self.assertEqual(len(predictions["y_test_pred"]), len(split["X_test"]))
 
@@ -66,13 +62,13 @@ class TestBiggsPipeline(unittest.TestCase):
     def test_log_to_mlflow(self, mock_report, mock_shap, mock_plt, mock_mlflow):
         mock_context = build_op_context()
         split = split_data(self.mock_data)
-        model_result = train_model(mock_context, split)
-        predictions = predict(mock_context, model_result, split)
+        model_result = train_model(split)
+        predictions = predict(model_result, split)
         model, algo = model_result
 
         # Mock SHAP behavior
         mock_shap_explainer = MagicMock()
-        # Assume the explainer returns an array with shape (n_samples, n_features)
+        # Assume the explainer returns an array of shape (n_samples, n_features)
         mock_shap_explainer.shap_values.return_value = np.random.rand(len(split["X_train"]), split["X_train"].shape[1])
         mock_shap.TreeExplainer.return_value = mock_shap_explainer
         # Prevent actual plotting
@@ -93,7 +89,6 @@ class TestBiggsPipeline(unittest.TestCase):
 
         # Verify SHAP was used correctly
         mock_shap.TreeExplainer.assert_called_with(model)
-
         # Verify Evidently report was generated
         mock_report.assert_called()
         mock_report_instance.run.assert_called()
