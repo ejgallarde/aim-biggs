@@ -24,4 +24,4 @@ jobs:
     - uses: pre-commit/action@v3.0.0
 
     - name: Run pytest
-      run: PYTHONPATH=$PWD pytest -vv tests --cov=src/api --cov=src/dagster
+      run: PYTHONPATH=$PWD pytest -vv tests --cov=src/dagster # --cov=src/api
