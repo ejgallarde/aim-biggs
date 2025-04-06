@@ -64,6 +64,16 @@ def external_data(context) -> dict:
     return results
 
 
+@op
+def print_external_data_head(context, ext_data: dict) -> dict:
+    # Print head(5) of each dataframe in the external data dictionary
+    for key, df in ext_data.items():
+        context.log.info(f"Head of {key}:")
+        context.log.info(df.head(5).to_string())
+    # Return the data unchanged in case downstream ops need it
+    return ext_data
+
+
 @asset
 def biggs_dataset() -> pd.DataFrame:
     # For testing, return a mock time series DataFrame.
@@ -253,6 +263,11 @@ def skew_data(split_data):
 
 @job
 def biggs_training_job():
+    # First, fetch external data from the client database.
+    ext_data = external_data()
+    # Print the head (first 5 rows) of each DataFrame from external_data.
+    printed_ext_data = print_external_data_head(ext_data)
+    # Next, use the mock dataset for training/testing (for now).
     dataset = biggs_dataset()
     split = split_data(dataset)
     model = train_model(split)
