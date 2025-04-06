@@ -266,7 +266,7 @@ def biggs_training_job():
     # First, fetch external data from the client database.
     ext_data = external_data()
     # Print the head (first 5 rows) of each DataFrame from external_data.
-    printed_ext_data = print_external_data_head(ext_data)
+    print_external_data_head(ext_data)
     # Next, use the mock dataset for training/testing (for now).
     dataset = biggs_dataset()
     split = split_data(dataset)

@@ -13,7 +13,7 @@ pytest-cov
 pandas
 shap
 evidently
-numpy
+numpy==1.24.3
 scikit-learn
 sqlalchemy
 dagster
