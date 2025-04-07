@@ -84,10 +84,9 @@ def biggs_dataset() -> pd.DataFrame:
     df = pd.DataFrame({"target": target}, index=dates)
     # Create a lag feature (previous day's target)
     df["lag_1"] = df["target"].shift(1)
-    # Drop the first row which will have a NaN in lag_1
+    # Drop the first row that has a NaN lag value
     df = df.dropna()
     return df
-
 
 
 @asset
@@ -106,21 +105,23 @@ def split_data(biggs_dataset: pd.DataFrame):
     }
 )
 def train_model(context, split_data):
+    context.log.info("Training time series forecasting model using lag features.")
     X_train = split_data["X_train"]
     y_train = split_data["y_train"]
 
     algo = context.op_config["algorithm"]
 
     if algo == "xgboost":
+        context.log.info("xgboost selected")
         model = XGBRegressor(
             n_estimators=100, random_state=42, objective="reg:squarederror"
         )
     elif algo == "lightgbm":
+        context.log.info("lightgbm selected")
         model = LGBMRegressor(n_estimators=100, random_state=42)
     else:
         raise ValueError(f"Unsupported algorithm: {algo}")
-
-    context.log.info("Training time series forecasting model using lag features.")
+    context.log.info("Entering model.fit function.")
     model.fit(X_train, y_train)
     return (model, algo)
 
