@@ -76,13 +76,18 @@ def print_external_data_head(context, ext_data: dict) -> dict:
 
 @asset
 def biggs_dataset() -> pd.DataFrame:
-    # For testing, return a mock time series DataFrame.
-    # This example simulates one year of daily data.
+    # Generate one year of daily data
     dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
     np.random.seed(42)
-    # Create a simple time series target
-    df = pd.DataFrame({"target": np.random.rand(365)}, index=dates)
+    # Create a time series target
+    target = np.random.rand(365)
+    df = pd.DataFrame({"target": target}, index=dates)
+    # Create a lag feature (previous day's target)
+    df["lag_1"] = df["target"].shift(1)
+    # Drop the first row which will have a NaN in lag_1
+    df = df.dropna()
     return df
+
 
 
 @asset
