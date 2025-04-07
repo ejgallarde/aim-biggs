@@ -3,6 +3,7 @@ services:
     build:
       context: ./src/
       dockerfile: ./dockerfiles/dagster
+    image: python:3.11
     container_name: dagster-webserver
     ports:
       - "3000:3000"

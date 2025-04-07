@@ -105,12 +105,14 @@ def split_data(biggs_dataset: pd.DataFrame):
     }
 )
 def train_model(context, split_data):
-    context.log.info("Training time series forecasting model using lag features.")
     X_train = split_data["X_train"]
     y_train = split_data["y_train"]
 
-    algo = context.op_config["algorithm"]
+    context.log.info(
+        f"X_train columns: {X_train.columns.tolist()}, shape: {X_train.shape}"
+    )
 
+    algo = context.op_config["algorithm"]
     if algo == "xgboost":
         context.log.info("xgboost selected")
         model = XGBRegressor(
