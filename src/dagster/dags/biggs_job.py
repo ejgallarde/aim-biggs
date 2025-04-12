@@ -98,7 +98,7 @@ def load_csv_data(context) -> dict:
     item_df = pd.read_csv(item_path)
 
     context.log.info(
-        f"Loaded department CSV with {department_df.shape[0]} rows and {department_df.shape[1]} columns"
+        f"Loaded dept CSV with {department_df.shape[0]} rows and {department_df.shape[1]} columns"
     )
     context.log.info(
         f"Loaded item CSV with {item_df.shape[0]} rows and {item_df.shape[1]} columns"
