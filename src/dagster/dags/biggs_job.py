@@ -38,7 +38,7 @@ mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         "queries": Field(Array(String), description="List of SQL queries to run"),
     }
 )
-def external_data(context) -> dict:
+def load_biggs_db_data(context) -> dict:
     config = context.op_config
     results = {}
     try:
@@ -65,7 +65,7 @@ def external_data(context) -> dict:
 
 
 @op
-def print_external_data_head(context, ext_data: dict) -> dict:
+def print_biggs_db_data(context, ext_data: dict) -> dict:
     # Print head(5) of each dataframe in the external data dictionary
     for key, df in ext_data.items():
         context.log.info(f"Head of {key}:")
@@ -117,7 +117,7 @@ def print_csv_data_head(context, csv_data: dict) -> dict:
 
 
 @asset
-def biggs_dataset() -> pd.DataFrame:
+def combine_biggs_data() -> pd.DataFrame:
     # Generate one year of daily data
     dates = pd.date_range(start="2023-01-01", periods=365, freq="D")
     np.random.seed(42)
@@ -232,93 +232,18 @@ def log_to_mlflow(context: OpExecutionContext, train_model, split_data, predict)
         logger.info(f"Train Score: {train_score}, Test Score: {test_score}")
 
 
-# @op
-# def log_to_mlflow_skewed(context: OpExecutionContext, train_model, split_data, predict):
-#     logger.add("mlflow_training.log", rotation="1 MB", level="INFO")
-
-#     X_train = split_data["X_train"]
-#     y_train = split_data["y_train"]
-#     X_test = split_data["X_test"]
-#     y_test = split_data["y_test"]
-
-#     # Get test predictions and re-index to match y_test
-#     y_test_pred = pd.Series(predict["y_test_pred"], index=y_test.index)
-
-#     (model, algo) = train_model
-#     model_name = "biggs_" + algo + "_model"
-
-#     # Apply artificial drift to simulate data skew
-#     skewed_data = skew_data(split_data)
-
-#     # Align predictions with the skewed data index
-#     y_test_pred_skewed = y_test_pred.loc[skewed_data["y_train"].index]
-
-#     with mlflow.start_run() as run:
-#         run_id = run.info.run_id
-#         logger.info(f"Run started: {run_id}")
-
-#         mlflow.sklearn.log_model(model, model_name)
-#         mlflow.log_params({"n_estimators": 100, "random_state": 42})
-
-#         train_score = model.score(X_train, y_train)
-#         test_score = model.score(X_test, y_test)
-#         mlflow.log_metric("train_score", train_score)
-#         mlflow.log_metric("test_score", test_score)
-
-#         # Generate a SHAP summary plot for the original data
-#         explainer = shap.TreeExplainer(model)
-#         shap_values = explainer.shap_values(X_train)
-#         plt.figure(figsize=(8, 6))
-#         shap.summary_plot(shap_values, X_train, show=False)
-#         plt.savefig("shap_summary_skewed.png", bbox_inches="tight")
-#         mlflow.log_artifact("shap_summary_skewed.png")
-#         plt.close()
-
-#         # Generate Evidently report comparing original and skewed data
-#         report_data = pd.DataFrame({"target": y_test, "prediction": y_test_pred})
-#         skewed_report_data = pd.DataFrame(
-#             {"target": skewed_data["y_train"], "prediction": y_test_pred_skewed}
-#         )
-#         report = Report(metrics=[RegressionPreset()])
-#         report.run(reference_data=report_data, current_data=skewed_report_data)
-#         report.save_html("evidently_report_skewed.html")
-#         mlflow.log_artifact("evidently_report_skewed.html")
-
-#         result = mlflow.register_model(
-#             model_uri=f"runs:/{run_id}/{model_name}",
-#             name=f"{model_name}_skewed",
-#         )
-
-#         logger.info(f"Model registered: {result.name}, version: {result.version}")
-#         logger.info(f"Train Score: {train_score}, Test Score: {test_score}")
-
-
-# @op
-# def skew_data(split_data):
-#     """Applies artificial drift to data for regression forecasting."""
-#     X_train = split_data["X_train"].copy()
-#     y_train = split_data["y_train"].copy()
-
-#     # Apply a multiplicative drift to the first predictor (lag feature)
-#     X_train.iloc[:, 0] = X_train.iloc[:, 0] * 1.2
-#     # Add noise to predictors
-#     noise = np.random.normal(0, 0.1, X_train.shape)
-#     X_train += noise
-
-#     # Apply a drift to the target variable: increase by 10% plus some noise
-#     y_train = y_train * 1.1 + np.random.normal(0, 0.5, size=y_train.shape)
-
-#     return {"X_train": X_train, "y_train": y_train}
-
-
 @job
 def biggs_training_job():
-    # First, fetch external data from the client database.
-    ext_data = external_data()
-    # Print the head (first 5 rows) of each DataFrame from external_data.
-    print_external_data_head(ext_data)
+    # Fetch external data from the client database and print head
+    biggs_db_data = load_biggs_db_data()
+    print_biggs_db_data(biggs_db_data)
+
+    # Read CSV files and prin head
+    biggs_csv_data = load_csv_data()
+    print_csv_data_head(biggs_csv_data)
+
     # Next, use the mock dataset for training/testing (for now).
-    dataset = biggs_dataset()
+    dataset = combine_biggs_data()
     split = split_data(dataset)
     model = train_model(split)
     predictions = predict(model, split)
@@ -327,6 +252,6 @@ def biggs_training_job():
 
 
 defs = Definitions(
-    assets=[external_data, load_csv_data, biggs_dataset, split_data],
+    assets=[load_biggs_db_data, load_csv_data, combine_biggs_data, split_data],
     jobs=[biggs_training_job],
 )
