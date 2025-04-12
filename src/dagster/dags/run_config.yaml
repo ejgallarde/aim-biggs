@@ -7,5 +7,6 @@ ops:
       password: "7x9r7f@2W"
       database: "admin_aim_masterfile"
       queries:
-        - "SELECT data_id, branch, pos, transdate, ite_code, quantity, dep_code, `date`, `time`, `type`, delivery FROM admin_aim_masterfile.rd5000 WHERE `date` > '2023-01-01' limit 1000;;
-        - "SELECT data_id, incode, ite_desc, dep_code, unit_prc, branch, pos FROM admin_aim_masterfile.rd5500 limit 1000;"
+        - "SELECT data_id, branch, pos, transdate, ite_code, quantity, dep_code, `date`, `time`, `type`, delivery FROM admin_aim_masterfile.rd5000 WHERE `date` > '2023-01-01' AND branch in ('AYALA-FRN')
+        - "SELECT data_id, incode, ite_desc, dep_code, unit_prc, branch, pos FROM admin_aim_masterfile.rd5500 where branch in ('OLA', 'BRLN');"
+        - "SELECT data_id, dept_code, dept_name, branch, pos FROM admin_aim_masterfile.rd1800 where branch in ('OLA', 'BRLN');"
