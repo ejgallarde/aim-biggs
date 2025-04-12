@@ -76,8 +76,16 @@ def print_external_data_head(context, ext_data: dict) -> dict:
 
 @asset(
     config_schema={
-        "department_filepath": Field(String, default_value="csv/department_category_mapping.csv", description="Path to the department CSV file"),
-        "item_filepath": Field(String, default_value="csv/item_category_mapping.csv", description="Path to the item CSV file"),
+        "department_filepath": Field(
+            String,
+            default_value="csv/department_category_mapping.csv",
+            description="Path to the department CSV file",
+        ),
+        "item_filepath": Field(
+            String,
+            default_value="csv/item_category_mapping.csv",
+            description="Path to the item CSV file",
+        ),
     }
 )
 def load_csv_data(context) -> dict:
@@ -85,13 +93,17 @@ def load_csv_data(context) -> dict:
     department_path = config["department_filepath"]
     item_path = config["item_filepath"]
     context.log.info(f"Loading CSV files from {department_path} and {item_path}")
-    
+
     department_df = pd.read_csv(department_path)
     item_df = pd.read_csv(item_path)
-    
-    context.log.info(f"Loaded department CSV with {department_df.shape[0]} rows and {department_df.shape[1]} columns")
-    context.log.info(f"Loaded item CSV with {item_df.shape[0]} rows and {item_df.shape[1]} columns")
-    
+
+    context.log.info(
+        f"Loaded department CSV with {department_df.shape[0]} rows and {department_df.shape[1]} columns"
+    )
+    context.log.info(
+        f"Loaded item CSV with {item_df.shape[0]} rows and {item_df.shape[1]} columns"
+    )
+
     return {"department": department_df, "item": item_df}
 
 
