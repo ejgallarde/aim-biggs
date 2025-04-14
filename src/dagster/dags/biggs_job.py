@@ -242,13 +242,14 @@ def biggs_training_job():
     biggs_csv_data = load_csv_data()
     print_csv_data_head(biggs_csv_data)
 
+    # Add Ranne's preprocessing code here (merging of data, etc.)
+
     # Next, use the mock dataset for training/testing (for now).
     dataset = combine_biggs_data()
     split = split_data(dataset)
     model = train_model(split)
     predictions = predict(model, split)
     log_to_mlflow(model, split, predictions)
-    # log_to_mlflow_skewed(model, split, predictions)
 
 
 defs = Definitions(
