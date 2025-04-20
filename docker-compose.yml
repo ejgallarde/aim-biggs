@@ -11,6 +11,8 @@ services:
       - single-network
     environment:
       DAGSTER_HOME: /dagster
+    volumes:
+      - ./csv:/dagster/csv  # ✅ MOUNT THE CSV FOLDER INSIDE THE CONTAINER
     command: ["dagster", "dev", "-h", "0.0.0.0", "-p", "3000"]
 
   db:

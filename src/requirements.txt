@@ -12,10 +12,11 @@ pytest
 pytest-cov
 pandas
 shap
-evidently
+evidently==0.6.7
 numpy
 scikit-learn
 sqlalchemy
 dagster
 PyMySQL
 xgboost
+pre-commit

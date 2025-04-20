@@ -1,18 +1,19 @@
-DEP_DESC,REMARKS,CAT_FLAG
-BAKUNADOR MEALS,Bulk Order Product,Bulk
-BIGGS AT HOME,Ready-to-Cook Product,Ignore
-BIGGS LOYALTY,Promotional Item,Promo
-BULK ORDER,Bulk Order Product,Bulk
-EVENT,Bulk Order Product,Bulk
-HOME CELEBRATION,Promotional Item,Promo
-KIDS EAT FREE,Promotional Item,Promo
-MARKETING PROMOS,Promotional Item,Promo
-MODIFIER,Modifier,Ignore
-NANAY'S FAVORITE,Ready-to-Cook Product,Ignore
-PARTY PACKS,Bulk Order Product,Bulk
-PREMIUM ITEMS,Merchandise,Ignore
-REPRESENTATION,Representation,Ignore
-RND,Corkage Fee,Ignore
-TEST MARKET,Test Market,Ignore
-UPGRADES,Upgrade,Upgrade
-FUNCTION,Bulk Order Product,Bulk
+dep_desc,remarks,cat_flag
+BAKUNADOR MEALS,Bulk Order Product,bulk
+BIGGS AT HOME,Ready-to-Cook Product,ignore
+BIGGS LOYALTY,Promotional Item,promo
+BULK ORDER,Bulk Order Product,bulk
+EVENT,Bulk Order Product,bulk
+HOME CELEBRATION,Promotional Item,promo
+KIDS EAT FREE,Promotional Item,promo
+MARKETING PROMOS,Promotional Item,promo
+MODIFIER,Modifier,ignore
+MOM KNOWS BEST,Promotional Item,promo
+NANAY'S FAVORITE,Ready-to-Cook Product,ignore
+PARTY PACKS,Bulk Order Product,bulk
+PREMIUM ITEMS,Merchandise,ignore
+REPRESENTATION,Representation,ignore
+RND,Corkage Fee,ignore
+TEST MARKET,Test Market,ignore
+UPGRADES,Upgrade,upgrade
+FUNCTION,Bulk Order Product,bulk

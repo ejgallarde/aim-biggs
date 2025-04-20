@@ -176,3 +176,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# generated files
+/csv_exports
+query_0.csv
+query_1.csv
+query_2.csv
+
+__init__.py
