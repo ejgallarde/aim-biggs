@@ -7,16 +7,20 @@ executes user-defined SQL queries, and returns the results as pandas DataFrames.
 
 import pandas as pd
 import pymysql
-from dagster import asset, Field, Int, String, Array
 
-@asset(config_schema={
-    "host": Field(String, description="External DB host (e.g., 'localhost')"),
-    "port": Field(Int, description="Port number for the DB (e.g., 3306)"),
-    "user": Field(String, description="Database username"),
-    "password": Field(String, description="Database password"),
-    "database": Field(String, description="Target database name"),
-    "queries": Field(Array(String), description="List of SQL queries to execute"),
-})
+from dagster import Array, Field, Int, String, asset
+
+
+@asset(
+    config_schema={
+        "host": Field(String, description="External DB host (e.g., 'localhost')"),
+        "port": Field(Int, description="Port number for the DB (e.g., 3306)"),
+        "user": Field(String, description="Database username"),
+        "password": Field(String, description="Database password"),
+        "database": Field(String, description="Target database name"),
+        "queries": Field(Array(String), description="List of SQL queries to execute"),
+    }
+)
 def external_data(context) -> dict:
     """
     Connects to an external database and executes SQL queries.

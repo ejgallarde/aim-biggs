@@ -6,21 +6,26 @@ from local CSV files and returns them as pandas DataFrames.
 """
 
 import os
-import pandas as pd
-from dagster import asset, Field, String
 
-@asset(config_schema={
-    "department_filepath": Field(
-        String,
-        default_value="/dagster/csv/department_category_mapping.csv",  # ✅ absolute inside container
-        description="Path to the department category mapping CSV file"
-    ),
-    "item_filepath": Field(
-        String,
-        default_value="/dagster/csv/item_category_mapping.csv",  # ✅ absolute inside container
-        description="Path to the item category mapping CSV file"
-    ),
-})
+import pandas as pd
+
+from dagster import Field, String, asset
+
+
+@asset(
+    config_schema={
+        "department_filepath": Field(
+            String,
+            default_value="/dagster/csv/department_category_mapping.csv",  # ✅ absolute inside container
+            description="Path to the department category mapping CSV file",
+        ),
+        "item_filepath": Field(
+            String,
+            default_value="/dagster/csv/item_category_mapping.csv",  # ✅ absolute inside container
+            description="Path to the item category mapping CSV file",
+        ),
+    }
+)
 def load_csv_data(context) -> dict:
     """
     Loads department and item mapping data from CSV files with robust path handling.
