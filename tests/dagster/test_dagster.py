@@ -8,7 +8,7 @@ from lightgbm import LGBMRegressor
 
 # Import the ops and assets from your pipeline module
 from src.dagster.dags.biggs_job import (
-    biggs_dataset,
+    combine_biggs_data,
     split_data,
     train_model,
     predict,
@@ -29,7 +29,7 @@ class TestBiggsPipeline(unittest.TestCase):
 
     def test_biggs_dataset(self):
         # Call the asset without any inputs; biggs_dataset should now not require external_data.
-        df = biggs_dataset()
+        df = combine_biggs_data()
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn("target", df.columns)
 
