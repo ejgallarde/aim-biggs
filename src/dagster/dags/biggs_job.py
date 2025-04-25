@@ -8,7 +8,7 @@ import pandas as pd
 import shap
 from data_preprocessing.transaction_clean_merge import run_full_preprocessing
 from data_sources.csv_mapping_ingest import load_csv_data
-from data_sources.external_db_ingest import load_external_data
+from src.dagster.data_sources.failed_external_db_ingest import load_external_data
 from evidently.metric_preset import RegressionPreset
 from evidently.report import Report
 from lightgbm import LGBMRegressor
@@ -400,10 +400,10 @@ def biggs_training_job():
     print_data_head(biggs_csv_mapping)
 
     df_transactions = load_and_process_transaction_data(biggs_db_data, biggs_csv_mapping)
-    df_transactions.head()
+    # df_transactions.head()
 
     df_transaction_daily = aggregate_transactions_to_daily(df_transactions)
-    df_transaction_daily.head()
+    # df_transaction_daily.head()
 
     df_transaction_daily_filtered = filter_top_10_items_per_branch(df_transaction_daily)
     print_data_head(df_transaction_daily_filtered)
