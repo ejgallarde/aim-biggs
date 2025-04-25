@@ -21,7 +21,7 @@ from dagster import Array, Field, Int, String, asset
         "queries": Field(Array(String), description="List of SQL queries to execute"),
     }
 )
-def external_data(context) -> dict:
+def load_external_data(context) -> dict:
     """
     Connects to an external database and executes SQL queries.
 

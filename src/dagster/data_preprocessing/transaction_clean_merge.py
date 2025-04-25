@@ -5,7 +5,7 @@ from typing import Dict
 
 import pandas as pd
 from data_sources.csv_mapping_ingest import load_csv_data
-from data_sources.external_db_ingest import external_data
+from data_sources.external_db_ingest import load_external_data
 
 
 def run_full_preprocessing(
